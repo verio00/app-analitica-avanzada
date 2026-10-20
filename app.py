@@ -9,81 +9,109 @@ import plotly.express as px
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Analítica Avanzada - Clasificador Iris",
+    page_title="Clasificador Inteligente de Iris",
     page_icon="🌸",
     layout="wide"
 )
 
-# Estilo visual y título principal
-st.title("🌸 Aplicación Interactiva de Analítica Avanzada")
+# Estilo CSS personalizado para mejorar tarjetas y espaciados
 st.markdown("""
-Esta aplicación utiliza Machine Learning (**Random Forest**) entrenado con el clásico **Dataset de Iris** para clasificar el tipo de flor según sus características físicas. ¡Mueve los controles de la izquierda para probar el modelo en tiempo real!
-""")
+    <style>
+    .main {
+        background-color: #0e1117;
+    }
+    .metric-card {
+        background-color: #1f2937;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Título principal limpio y directo
+st.title("🌸 Dashboard de Clasificación: Botánica Inteligente")
+st.markdown("Modelo interactivo de Machine Learning impulsado por **Random Forest**.")
 
 # Cargar dataset
 iris = datasets.load_iris()
 X = iris.data
 y = iris.target
 df_iris = pd.DataFrame(X, columns=iris.feature_names)
-df_iris['target'] = y
-df_iris['especie'] = df_iris['target'].map({0: iris.target_names[0], 1: iris.target_names[1], 2: iris.target_names[2]})
+df_iris['Especie'] = pd.Series(y).map({0: 'Setosa', 1: 'Versicolor', 2: 'Virginica'})
 
 # Entrenamiento del modelo
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 model = RandomForestClassifier(random_state=42)
 model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-acc = accuracy_score(y_test, y_pred)
+acc = accuracy_score(y_test, model.predict(X_test))
 
-# Panel Lateral (Sliders)
-st.sidebar.header("🎛️ Parámetros de Entrada")
-st.sidebar.markdown("Modifica las medidas para realizar una predicción:")
+# Panel Lateral de Control
+st.sidebar.header("🎛️ Panel de Control")
+st.sidebar.markdown("Ajusta las dimensiones de la flor:")
 
 def user_input_features():
-    sepal_length = st.sidebar.slider("Longitud del Sépalo (cm)", float(X[:,0].min()), float(X[:,0].max()), float(X[:,0].mean()))
-    sepal_width = st.sidebar.slider("Ancho del Sépalo (cm)", float(X[:,1].min()), float(X[:,1].max()), float(X[:,1].mean()))
-    petal_length = st.sidebar.slider("Longitud del Pétalo (cm)", float(X[:,2].min()), float(X[:,2].max()), float(X[:,2].mean()))
-    petal_width = st.sidebar.slider("Ancho del Pétalo (cm)", float(X[:,3].min()), float(X[:,3].max()), float(X[:,3].mean()))
-    
-    data = np.array([[sepal_length, sepal_width, petal_length, petal_width]])
-    return data
+    sepal_length = st.sidebar.slider("Longitud Sépalo (cm)", float(X[:,0].min()), float(X[:,0].max()), float(X[:,0].mean()))
+    sepal_width = st.sidebar.slider("Ancho Sépalo (cm)", float(X[:,1].min()), float(X[:,1].max()), float(X[:,1].mean()))
+    petal_length = st.sidebar.slider("Longitud Pétalo (cm)", float(X[:,2].min()), float(X[:,2].max()), float(X[:,2].mean()))
+    petal_width = st.sidebar.slider("Ancho Pétalo (cm)", float(X[:,3].min()), float(X[:,3].max()), float(X[:,3].mean()))
+    return np.array([[sepal_length, sepal_width, petal_length, petal_width]])
 
 df_input = user_input_features()
 
-# Predicción
+# Predicciones
 prediction = model.predict(df_input)
-prediction_proba = model.predict_proba(df_input)
+prediction_proba = model.predict_proba(df_input)[0]
+especie_ganadora = iris.target_names[prediction[0]].capitalize()
+confianza = np.max(prediction_proba) * 100
 
-# ---- CUERPO PRINCIPAL EN COLUMNAS ----
-col1, col2 = st.columns([1, 1])
+# Cuerpo Principal en Columnas
+col1, col2 = st.columns([1.2, 1.8], gap="large")
 
 with col1:
-    st.subheader("📊 Resultados de la Predicción")
+    st.subheader("🎯 Resultado de la Predicción")
     
-    # Métrica visual destacada
-    flor_predicha = iris.target_names[prediction][0].upper()
-    st.metric(label="Especie Identificada", value=flor_predicha)
+    # Tarjeta de resultado principal
+    st.success(f"### Especie Detectada: **{especie_ganadora}**")
+    st.metric(label="Confianza del Modelo", value=f"{confianza:.1f}%", delta="Alta precisión")
     
-    st.write("Valores que ingresaste:")
-    df_user_display = pd.DataFrame(df_input, columns=iris.feature_names)
-    st.dataframe(df_user_display, use_container_width=True)
-    
-    st.write("Probabilidades por especie:")
-    df_proba = pd.DataFrame(prediction_proba, columns=iris.target_names)
-    st.dataframe(df_proba, use_container_width=True)
+    st.markdown("---")
+    st.markdown("#### 📋 Valores ingresados:")
+    df_user_display = pd.DataFrame(df_input, columns=["Sépalo Largo", "Sépalo Ancho", "Pétalo Largo", "Pétalo Ancho"])
+    st.dataframe(df_user_display, use_container_width=True, hide_index=True)
 
 with col2:
-    st.subheader("📈 Visualización del Dataset")
-    # Gráfico interactivo con Plotly
+    st.subheader("📊 Distribución Espacial del Dataset")
+    
+    # Gráfico interactivo moderno con Plotly
     fig = px.scatter(
         df_iris, 
-        x="sepal length (cm)", 
-        y="sepal width (cm)", 
-        color="especie",
-        title="Distribución del Dataset Iris (Sépalo)",
+        x="petal length (cm)", 
+        y="petal width (cm)", 
+        color="Especie",
+        color_discrete_map={'Setosa': '#ff7b72', 'Versicolor': '#ffa657', 'Virginica': '#79c0ff'},
+        title="Relación: Longitud vs Ancho de Pétalos",
         template="plotly_dark"
     )
+    
+    # Añadir el punto actual del usuario en el gráfico
+    fig.add_add_annotation = True
+    fig.add_scatter(
+        x=[df_input[0][2]], 
+        y=[df_input[0][3]], 
+        mode='markers',
+        marker=dict(size=18, color='yellow', symbol='star'),
+        name='Tu Selección'
+    )
+    
+    fig.update_layout(height=400, margin=dict(l=20, r=20, t=40, b=20))
     st.plotly_chart(fig, use_container_width=True)
 
+# Pie de página ejecutivo
 st.markdown("---")
-st.info(f"💡 **Precisión global del modelo evaluado en pruebas:** `{acc * 100:.2f}%`")
+col_f1, col_f2 = st.columns(2)
+with col_f1:
+    st.info(f"🛡️ **Precisión General del Algoritmo:** `{acc * 100:.1f}%`")
+with col_f2:
+    st.caption("✨ Desarrollado para Analítica Avanzada | Desplegado en Streamlit Cloud")
